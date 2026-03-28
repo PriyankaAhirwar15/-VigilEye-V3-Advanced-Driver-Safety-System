@@ -1,1 +1,3 @@
 libgl1
+libavdevice-dev
+libavfilter-dev
