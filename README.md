@@ -1,3 +1,16 @@
+---
+license: mit
+title: VigilEye V3 Advanced Driver Safety System
+sdk: gradio
+sdk_version: 4.19.2
+emoji: 👀
+colorFrom: red
+colorTo: yellow
+app_file: app.py
+pinned: true
+---
+
+
 <div align="center">
 
 ```
@@ -656,4 +669,3 @@ This system is for reference only — not a certified medical or legal device.
 [![GitHub Forks](https://img.shields.io/github/forks/yourusername/VigilEye-V3?style=social)](https://github.com/yourusername/VigilEye-V3/fork)
 
 </div>
-
