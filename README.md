@@ -2,7 +2,7 @@
 license: mit
 title: VigilEye V3 Advanced Driver Safety System
 sdk: gradio
-sdk_version: 6.10.0
+sdk_version: 4.19.2
 emoji: 👀
 colorFrom: red
 colorTo: yellow
@@ -351,7 +351,7 @@ Python 3.10+   │   Webcam   │   4GB RAM minimum   │   pip
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/VigilEye-V3.git
+git clone git clone [https://github.com/PriyankaAhirwar15/-VigilEye-V3-Advanced-Driver-Safety-System]
 cd VigilEye-V3
 ```
 
@@ -377,6 +377,12 @@ pip install -r requirements.txt
 
 ```bash
 python test_system.py
+```
+
+### 5. Run the app
+
+```bash
+python app.py
 ```
 
 Expected output:
