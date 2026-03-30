@@ -1,8 +1,7 @@
 ---
 license: mit
 title: VigilEye V3 Advanced Driver Safety System
-sdk: streamlit
-app_file: streamlit_app.py
+sdk: gradio
 emoji: 👀
 colorFrom: red
 colorTo: yellow
