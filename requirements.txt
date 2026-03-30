@@ -1,3 +1,6 @@
+# --- Gradio Compatibility ---
+audioop-lts
+
 # --- Computer Vision & AI ---
 opencv-contrib-python-headless
 mediapipe
