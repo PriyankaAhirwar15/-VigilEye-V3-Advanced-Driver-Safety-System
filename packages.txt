@@ -1,5 +1,2 @@
 libgl1
-libglib2.0-0
-libavdevice-dev
-libavfilter-dev
-pkg-config
+freeglut3-dev
