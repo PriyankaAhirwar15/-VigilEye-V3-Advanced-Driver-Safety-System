@@ -2,6 +2,7 @@
 license: mit
 title: VigilEye V3 Advanced Driver Safety System
 sdk: gradio
+sdk_version: 4.26.0
 emoji: 👀
 colorFrom: red
 colorTo: yellow
