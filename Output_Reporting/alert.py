@@ -3,8 +3,18 @@
 #   Voice + Sound Alert System (Multithreaded)
 # ---------------------------------------------------------
 
-import pyttsx3
-import pygame
+try:
+    import pyttsx3
+    HAS_PYTTSX3 = True
+except ImportError:
+    HAS_PYTTSX3 = False
+
+try:
+    import pygame
+    HAS_PYGAME = True
+except ImportError:
+    HAS_PYGAME = False
+
 import threading
 import time
 import math
@@ -17,17 +27,23 @@ from Config_Files.config import (
 )
 
 # -- Setup voice engine --------------------
-try:
-    engine = pyttsx3.init()
-    engine.setProperty("rate", 160)       # Speaking speed
-    engine.setProperty("volume", 1.0)     # Full volume level
-except Exception as e:
-    print(f"[ERROR] Voice Init Failed: {e}")
-    engine = None
+engine = None
+if HAS_PYTTSX3:
+    try:
+        engine = pyttsx3.init()
+        engine.setProperty("rate", 160)       # Speaking speed
+        engine.setProperty("volume", 1.0)     # Full volume level
+    except Exception as e:
+        print(f"[ERROR] Voice Init Failed: {e}")
+        engine = None
 
 # -- Setup pygame for beep sounds ---------
-if not pygame.mixer.get_init():
-    pygame.mixer.init()
+if HAS_PYGAME:
+    try:
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+    except Exception:
+        pass
 
 # -- Global Variables for Alert Tracking ---
 last_alert_time = 0
@@ -57,6 +73,8 @@ def speak_async(message):
 
 def beep(frequency=1000, duration=500):
     """Generates and plays a beep sound using pygame buffer"""
+    if not HAS_PYGAME:
+        return
     try:
         sample_rate = 44100
         n_samples = int(sample_rate * duration / 1000)
