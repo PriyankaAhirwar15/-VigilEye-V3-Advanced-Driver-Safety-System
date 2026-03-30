@@ -12,9 +12,9 @@ ultralytics
 numpy
 
 # --- Math & Data Logic ---
-pandas==2.2.1
-matplotlib==3.8.3
-scipy==1.12.0
+pandas
+matplotlib
+scipy
 
 # --- Utilities & Reports ---
 #pygame==2.5.2
