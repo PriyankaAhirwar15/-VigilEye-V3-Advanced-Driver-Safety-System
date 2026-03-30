@@ -1,11 +1,4 @@
-# --- Core Web Framework ---
-streamlit
-streamlit-webrtc
-av
-#gradio==4.26.0
-
 # --- Computer Vision & AI ---
-opencv-python-headless
 opencv-contrib-python-headless
 mediapipe
 ultralytics
@@ -17,7 +10,6 @@ matplotlib
 scipy
 
 # --- Utilities & Reports ---
-#pygame==2.5.2
 reportlab
-fpdf==1.7.2
-python-dotenv==1.0.1
+fpdf
+python-dotenv
