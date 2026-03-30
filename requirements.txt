@@ -1,14 +1,14 @@
 # --- Core Web Framework ---
-streamlit==1.32.0
-streamlit-webrtc==0.47.1
+streamlit
+streamlit-webrtc
 av
 #gradio==4.26.0
 
 # --- Computer Vision & AI ---
-opencv-python-headless==4.9.0.80
-mediapipe==0.10.11
-ultralytics==8.1.0
-numpy==1.26.4
+opencv-python-headless
+mediapipe
+ultralytics
+numpy
 
 # --- Math & Data Logic ---
 pandas==2.2.1
