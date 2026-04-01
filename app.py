@@ -221,10 +221,4 @@ with gr.Blocks(title=DASHBOARD_TITLE, theme=gr.themes.Default()) as app:
         ]
     )
 
-import os
-if os.environ.get("SPACE_ID"):
-    # Running on Hugging Face Spaces
-    app.launch()
-else:
-    # Running locally
-    app.launch(server_name="0.0.0.0", server_port=7860)
+app.queue().launch()
