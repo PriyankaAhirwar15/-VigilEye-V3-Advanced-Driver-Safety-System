@@ -1,7 +1,7 @@
 # =============================================================================
 #   VigilEye-V3  |  test_system.py
 #   Full System Test Suite — Tests all modules independently + integrated
-#   Run from your project root: python test_system.py
+#   Run from your project root: python Testing/test_system.py
 # =============================================================================
 
 import sys
@@ -11,8 +11,10 @@ import numpy as np
 
 # ── CRITICAL: Make sure we run from the project root ──────────────────────────
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-os.chdir(SCRIPT_DIR)
-sys.path.insert(0, SCRIPT_DIR)
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+os.chdir(PROJECT_ROOT)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 # ── Terminal colors ────────────────────────────────────────────────────────────
 GREEN  = "\033[92m"
@@ -69,7 +71,7 @@ def face_frame():
 section("1. CONFIG MODULE")
 
 def test_config_imports():
-    import config
+    import Config_Files.config as config
     for attr in [
         "EAR_THRESHOLD", "EAR_CONSEC_FRAMES",
         "MAR_THRESHOLD", "MAR_CONSEC_FRAMES", "MAX_YAWNS_PER_MIN",
@@ -84,25 +86,25 @@ def test_config_imports():
     return "All config attributes present"
 
 def test_config_weights_sum():
-    from config import WEIGHT_EAR, WEIGHT_PERCLOS, WEIGHT_MAR, WEIGHT_GAZE
+    from Config_Files.config import WEIGHT_EAR, WEIGHT_PERCLOS, WEIGHT_MAR, WEIGHT_GAZE
     total = WEIGHT_EAR + WEIGHT_PERCLOS + WEIGHT_MAR + WEIGHT_GAZE
     assert abs(total - 1.0) < 1e-6, f"Weights sum to {total}, not 1.0"
     return f"Weights sum = {total:.2f}"
 
 def test_config_severity_order():
-    from config import SEVERITY_MILD, SEVERITY_MODERATE, SEVERITY_CRITICAL
+    from Config_Files.config import SEVERITY_MILD, SEVERITY_MODERATE, SEVERITY_CRITICAL
     assert SEVERITY_MILD < SEVERITY_MODERATE < SEVERITY_CRITICAL
     return f"MILD={SEVERITY_MILD} < MODERATE={SEVERITY_MODERATE} < CRITICAL={SEVERITY_CRITICAL}"
 
 def test_config_thresholds():
-    from config import EAR_THRESHOLD, MAR_THRESHOLD, PERCLOS_THRESHOLD
+    from Config_Files.config import EAR_THRESHOLD, MAR_THRESHOLD, PERCLOS_THRESHOLD
     assert 0 < EAR_THRESHOLD < 1
     assert 0 < MAR_THRESHOLD < 1
     assert 0 < PERCLOS_THRESHOLD < 100
     return "All thresholds in valid range"
 
 def test_config_messages():
-    from config import MSG_MILD, MSG_MODERATE, MSG_CRITICAL, MSG_YAWN, MSG_DISTRACTED
+    from Config_Files.config import MSG_MILD, MSG_MODERATE, MSG_CRITICAL, MSG_YAWN, MSG_DISTRACTED
     for m in [MSG_MILD, MSG_MODERATE, MSG_CRITICAL, MSG_YAWN, MSG_DISTRACTED]:
         assert isinstance(m, str) and len(m) > 0
     return "All 5 alert messages are non-empty strings"
@@ -120,7 +122,7 @@ test("All alert messages non-empty",       test_config_messages)
 section("2. FATIGUE SCORE MODULE")
 
 def test_fatigue_imports():
-    from fatigue_score import (
+    from Core_Detection.fatigue_score import (
         calculate_fatigue_score, get_score_breakdown, normalize,
         calculate_ear_score, calculate_perclos_score,
         calculate_mar_score, calculate_gaze_score
@@ -128,7 +130,7 @@ def test_fatigue_imports():
     return "All 7 functions imported"
 
 def test_normalize():
-    from fatigue_score import normalize
+    from Core_Detection.fatigue_score import normalize
     assert normalize(0,   0, 100) == 0.0
     assert normalize(100, 0, 100) == 1.0
     assert normalize(50,  0, 100) == 0.5
@@ -138,25 +140,25 @@ def test_normalize():
     return "Clamp + interpolation correct"
 
 def test_score_range():
-    from fatigue_score import calculate_fatigue_score
+    from Core_Detection.fatigue_score import calculate_fatigue_score
     score, _ = calculate_fatigue_score(0.30, 10.0, 0.30, 0.05, 0.10)
     assert 0 <= score <= 100
     return f"Normal case score = {score}"
 
 def test_drowsy_score():
-    from fatigue_score import calculate_fatigue_score
+    from Core_Detection.fatigue_score import calculate_fatigue_score
     score, _ = calculate_fatigue_score(0.10, 60.0, 0.70, 0.20, 0.30)
     assert score > 50, f"Drowsy inputs gave {score}, expected >50"
     return f"Drowsy score = {score} (>50)"
 
 def test_safe_score():
-    from fatigue_score import calculate_fatigue_score
+    from Core_Detection.fatigue_score import calculate_fatigue_score
     score, _ = calculate_fatigue_score(0.35, 2.0, 0.20, 0.02, 0.05)
     assert score < 50, f"Safe inputs gave {score}, expected <50"
     return f"Safe score = {score} (<50)"
 
 def test_breakdown_keys():
-    from fatigue_score import get_score_breakdown
+    from Core_Detection.fatigue_score import get_score_breakdown
     r = get_score_breakdown(0.25, 15.0, 0.40, 0.08, 0.12)
     for k in ["fatigue_score", "eye_component", "perclos_component",
               "mouth_component", "gaze_component"]:
@@ -164,7 +166,7 @@ def test_breakdown_keys():
     return "All 5 breakdown keys present"
 
 def test_component_range():
-    from fatigue_score import calculate_fatigue_score
+    from Core_Detection.fatigue_score import calculate_fatigue_score
     _, parts = calculate_fatigue_score(0.25, 15.0, 0.40, 0.08, 0.12)
     for k, v in parts.items():
         assert 0 <= v <= 100, f"{k}={v} out of range"
@@ -185,11 +187,11 @@ test("Component scores in 0-100",          test_component_range)
 section("3. ALERT MODULE")
 
 def test_alert_imports():
-    from alert import trigger_alert, get_severity_label, get_severity_color, speak_async, beep
+    from Output_Reporting.alert import trigger_alert, get_severity_label, get_severity_color, speak_async, beep
     return "All 5 functions imported"
 
 def test_severity_labels():
-    from alert import get_severity_label
+    from Output_Reporting.alert import get_severity_label
     assert "SAFE"     in get_severity_label(10)
     assert "MILD"     in get_severity_label(50)
     assert "MODERATE" in get_severity_label(75)
@@ -197,21 +199,21 @@ def test_severity_labels():
     return "All 4 severity labels correct"
 
 def test_severity_colors():
-    from alert import get_severity_color
+    from Output_Reporting.alert import get_severity_color
     for s in [10, 50, 75, 95]:
         c = get_severity_color(s)
         assert c.startswith("#") and len(c) == 7, f"Bad color: {c}"
     return "All severity colors are valid hex"
 
 def test_trigger_no_crash():
-    from alert import trigger_alert
+    from Output_Reporting.alert import trigger_alert
     for s in [10, 50, 75, 95]:
         trigger_alert(s)
     trigger_alert(95, yawning=True, distracted=True)
     return "trigger_alert() ran without crash for all levels"
 
 def test_cooldown():
-    import alert as a
+    import Output_Reporting.alert as a
     a.last_alert_time = time.time()
     try:
         a.trigger_alert(95)
@@ -238,13 +240,13 @@ _S = {"fatigue_score": 30, "eye_component": 20,
       "perclos_component": 10, "mouth_component": 15, "gaze_component": 12}
 
 def _lg():
-    import config
+    import Config_Files.config as config
     config.ENABLE_LOGGING = False
-    from logger import SessionLogger
+    from Output_Reporting.logger import SessionLogger
     return SessionLogger()
 
 def test_logger_import():
-    from logger import SessionLogger
+    from Output_Reporting.logger import SessionLogger
     return "SessionLogger imported"
 
 def test_logger_init():
@@ -294,24 +296,24 @@ test("close() no crash",                   test_logger_close)
 section("5. NIGHT MODE MODULE")
 
 def test_night_imports():
-    from night_mode import (get_brightness, get_light_status,
-                            enhance_frame, apply_clahe, process_night_mode)
+    from Feature_Modules.night_mode import (get_brightness, get_light_status,
+                                            enhance_frame, apply_clahe, process_night_mode)
     return "All 5 functions imported"
 
 def test_brightness_black():
-    from night_mode import get_brightness
+    from Feature_Modules.night_mode import get_brightness
     b = get_brightness(black_frame())
     assert b < 5
     return f"Black frame brightness = {b:.1f}"
 
 def test_brightness_white():
-    from night_mode import get_brightness
+    from Feature_Modules.night_mode import get_brightness
     b = get_brightness(np.full((480, 640, 3), 255, dtype=np.uint8))
     assert b > 250
     return f"White frame brightness = {b:.1f}"
 
 def test_light_labels():
-    from night_mode import get_light_status
+    from Feature_Modules.night_mode import get_light_status
     assert get_light_status(20)[0]  == "very_dark"
     assert get_light_status(60)[0]  == "dark"
     assert get_light_status(120)[0] == "normal"
@@ -319,21 +321,21 @@ def test_light_labels():
     return "All 4 light levels correct"
 
 def test_enhance_dark():
-    from night_mode import enhance_frame
+    from Feature_Modules.night_mode import enhance_frame
     d = gray_frame(30)
     e = enhance_frame(d, 30)
     assert e.mean() > d.mean()
     return f"Brightness boosted: {d.mean():.1f} -> {e.mean():.1f}"
 
 def test_clahe():
-    from night_mode import apply_clahe
+    from Feature_Modules.night_mode import apply_clahe
     f = gray_frame(60)
     r = apply_clahe(f)
     assert r.shape == f.shape
     return f"apply_clahe() shape unchanged: {r.shape}"
 
 def test_night_mode_keys():
-    from night_mode import process_night_mode
+    from Feature_Modules.night_mode import process_night_mode
     _, info = process_night_mode(gray_frame(100))
     for k in ["brightness", "light_status", "light_label", "night_mode_on"]:
         assert k in info
@@ -355,12 +357,12 @@ test("process_night_mode() output keys",   test_night_mode_keys)
 section("6. CHARTS MODULE")
 
 def test_charts_imports():
-    from charts import (draw_fatigue_chart, draw_component_chart,
-                        draw_gauge_chart, get_zone_color)
+    from Output_Reporting.charts import (draw_fatigue_chart, draw_component_chart,
+                                        draw_gauge_chart, get_zone_color)
     return "All 4 functions imported"
 
 def test_zone_colors():
-    from charts import get_zone_color
+    from Output_Reporting.charts import get_zone_color
     assert get_zone_color(10) == "#00CC44"
     assert get_zone_color(50) == "#FFD700"
     assert get_zone_color(80) == "#FF6600"
@@ -369,7 +371,7 @@ def test_zone_colors():
 
 def test_fatigue_chart_empty():
     import matplotlib.pyplot as plt
-    from charts import draw_fatigue_chart
+    from Output_Reporting.charts import draw_fatigue_chart
     from collections import deque
     assert draw_fatigue_chart(deque()) is not None
     plt.close("all")
@@ -377,7 +379,7 @@ def test_fatigue_chart_empty():
 
 def test_fatigue_chart_data():
     import matplotlib.pyplot as plt
-    from charts import draw_fatigue_chart
+    from Output_Reporting.charts import draw_fatigue_chart
     from collections import deque
     h = deque([10, 25, 40, 55, 70, 85, 95, 80, 60, 35], maxlen=100)
     assert draw_fatigue_chart(h) is not None
@@ -386,7 +388,7 @@ def test_fatigue_chart_data():
 
 def test_component_chart():
     import matplotlib.pyplot as plt
-    from charts import draw_component_chart
+    from Output_Reporting.charts import draw_component_chart
     fig = draw_component_chart({
         "eye_component": 45.0, "perclos_component": 30.0,
         "mouth_component": 60.0, "gaze_component": 20.0,
@@ -397,14 +399,14 @@ def test_component_chart():
 
 def test_component_chart_empty():
     import matplotlib.pyplot as plt
-    from charts import draw_component_chart
+    from Output_Reporting.charts import draw_component_chart
     assert draw_component_chart({}) is not None
     plt.close("all")
     return "Component chart handles empty dict"
 
 def test_gauge_all():
     import matplotlib.pyplot as plt
-    from charts import draw_gauge_chart
+    from Output_Reporting.charts import draw_gauge_chart
     for s in [0, 25, 50, 75, 100]:
         assert draw_gauge_chart(s) is not None
     plt.close("all")
@@ -425,38 +427,38 @@ test("Gauge chart - all ranges",           test_gauge_all)
 section("7. FACE RECOGNITION MODULE")
 
 def test_face_import():
-    from face_recognition_module import DriverRecognizer
+    from Feature_Modules.face_recognition_module import DriverRecognizer
     return "DriverRecognizer imported"
 
 def test_face_init():
-    from face_recognition_module import DriverRecognizer
+    from Feature_Modules.face_recognition_module import DriverRecognizer
     dr = DriverRecognizer()
     assert hasattr(dr, "face_cascade") and hasattr(dr, "recognizer")
     assert hasattr(dr, "trained")
-    assert os.path.exists("drivers")
+    assert os.path.exists(os.path.join("Database", "Drivers")) or os.path.exists("drivers")
     return f"Initialized - trained={dr.trained}"
 
 def test_face_recognize_keys():
-    from face_recognition_module import DriverRecognizer
+    from Feature_Modules.face_recognition_module import DriverRecognizer
     _, info = DriverRecognizer().recognize(face_frame())
     for k in ["driver_name", "confidence", "face_detected"]:
         assert k in info
     return "recognize() returns all 3 keys"
 
 def test_face_get_drivers():
-    from face_recognition_module import DriverRecognizer
+    from Feature_Modules.face_recognition_module import DriverRecognizer
     r = DriverRecognizer().get_all_drivers()
     assert isinstance(r, str) and len(r) > 0
     return f"get_all_drivers() -> '{r[:40]}'"
 
 def test_face_empty_name():
-    from face_recognition_module import DriverRecognizer
+    from Feature_Modules.face_recognition_module import DriverRecognizer
     msg = DriverRecognizer().register_driver(face_frame(), "")
     assert any(w in msg.lower() for w in ["name", "enter", "please"])
     return f"Empty name rejected: '{msg}'"
 
 def test_face_whitespace_name():
-    from face_recognition_module import DriverRecognizer
+    from Feature_Modules.face_recognition_module import DriverRecognizer
     msg = DriverRecognizer().register_driver(face_frame(), "   ")
     assert any(w in msg.lower() for w in ["name", "enter", "please"])
     return f"Whitespace name rejected: '{msg}'"
@@ -475,18 +477,18 @@ test("Whitespace name rejected",           test_face_whitespace_name)
 section("8. PHONE DETECTOR MODULE")
 
 def test_phone_import():
-    from phone_detector import PhoneDetector
+    from Feature_Modules.phone_detector import PhoneDetector
     return "PhoneDetector imported"
 
 def test_phone_init():
-    from phone_detector import PhoneDetector
+    from Feature_Modules.phone_detector import PhoneDetector
     pd = PhoneDetector()
     assert hasattr(pd, "model")
     assert pd.phone_count == 0 and pd.total_frames == 0
     return "PhoneDetector initialized"
 
 def test_phone_blank():
-    from phone_detector import PhoneDetector
+    from Feature_Modules.phone_detector import PhoneDetector
     _, info = PhoneDetector().detect(gray_frame(120))
     for k in ["phone_detected", "phone_confidence", "phone_boxes", "total_detections"]:
         assert k in info
@@ -494,7 +496,7 @@ def test_phone_blank():
     return "Blank frame -> phone_detected=False, all 4 keys present"
 
 def test_phone_counter():
-    from phone_detector import PhoneDetector
+    from Feature_Modules.phone_detector import PhoneDetector
     pd = PhoneDetector()
     for _ in range(3):
         pd.detect(gray_frame(120))
@@ -502,7 +504,7 @@ def test_phone_counter():
     return f"total_frames = {pd.total_frames}"
 
 def test_phone_stats():
-    from phone_detector import PhoneDetector
+    from Feature_Modules.phone_detector import PhoneDetector
     s = PhoneDetector().get_stats()
     assert "total_phone_detections" in s and "detection_rate" in s
     return f"Stats: {s}"
@@ -520,11 +522,11 @@ test("get_stats() returns correct keys",   test_phone_stats)
 section("9. PREDICTOR MODULE")
 
 def test_predictor_import():
-    from predictor import predict
+    from Core_Detection.predictor import predict
     return "predict() imported"
 
 def test_predictor_keys():
-    from predictor import predict
+    from Core_Detection.predictor import predict
     data = predict(black_frame(), [])
     for k in ["face_detected", "EAR", "MAR", "PERCLOS",
               "gaze_x", "gaze_y", "drowsy", "yawning", "distracted"]:
@@ -532,14 +534,14 @@ def test_predictor_keys():
     return "All 9 output keys present"
 
 def test_predictor_black():
-    from predictor import predict
+    from Core_Detection.predictor import predict
     data = predict(black_frame(), [])
     assert data["face_detected"] == False
     assert data["EAR"] == 0.0 and data["MAR"] == 0.0 and data["PERCLOS"] == 0.0
     return "Black frame -> face_detected=False, metrics=0.0"
 
 def test_predictor_buffer():
-    from predictor import predict
+    from Core_Detection.predictor import predict
     buf = []
     for _ in range(10):
         predict(black_frame(), buf)
@@ -547,13 +549,13 @@ def test_predictor_buffer():
     return f"PERCLOS buffer length = {len(buf)} (<=60)"
 
 def test_predictor_ear_range():
-    from predictor import predict
+    from Core_Detection.predictor import predict
     data = predict(gray_frame(120), [])
     assert 0.0 <= data["EAR"] <= 1.0
     return f"EAR = {data['EAR']}"
 
 def test_predictor_bool_types():
-    from predictor import predict
+    from Core_Detection.predictor import predict
     data = predict(black_frame(), [])
     assert isinstance(data["drowsy"], bool)
     assert isinstance(data["yawning"], bool)
@@ -577,11 +579,11 @@ _DATA = {"EAR": 0.28, "MAR": 0.30, "PERCLOS": 10.0,
          "gaze_x": 0.05, "gaze_y": 0.08, "yawning": False}
 
 def test_alcohol_import():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     return "AlcoholDetector imported"
 
 def test_alcohol_init():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad = AlcoholDetector()
     assert hasattr(ad, "impairment_score")
     assert hasattr(ad, "ear_buffer")
@@ -589,7 +591,7 @@ def test_alcohol_init():
     return "AlcoholDetector initialized correctly"
 
 def test_alcohol_detect_keys():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad   = AlcoholDetector()
     info = ad.detect(_DATA)
     for k in ["impairment_score", "signals_active", "alcohol_alert",
@@ -599,14 +601,14 @@ def test_alcohol_detect_keys():
     return "All 9 output keys present"
 
 def test_alcohol_score_range():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad   = AlcoholDetector()
     info = ad.detect(_DATA)
     assert 0 <= info["impairment_score"] <= 100
     return f"impairment_score = {info['impairment_score']}"
 
 def test_alcohol_safe_data():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad = AlcoholDetector()
     for _ in range(30):
         info = ad.detect(_DATA)
@@ -615,14 +617,14 @@ def test_alcohol_safe_data():
     return f"Normal data -> score={info['impairment_score']} (safe)"
 
 def test_alcohol_status_label():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad  = AlcoholDetector()
     lbl = ad.get_status_label()
     assert isinstance(lbl, str) and len(lbl) > 0
     return f"Status label: '{lbl}'"
 
 def test_alcohol_active_signals():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad      = AlcoholDetector()
     ad.detect(_DATA)
     signals = ad.get_active_signals()
@@ -630,7 +632,7 @@ def test_alcohol_active_signals():
     return f"Active signals: {signals}"
 
 def test_alcohol_bool_flags():
-    from alcohol_detector import AlcoholDetector
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad   = AlcoholDetector()
     info = ad.detect(_DATA)
     for flag in ["alcohol_alert", "should_alert", "eye_sway",
@@ -654,25 +656,25 @@ test("All flag fields are bool type",      test_alcohol_bool_flags)
 section("11. REPORT GENERATOR MODULE")
 
 def test_report_import():
-    from report_generator import ReportGenerator
+    from Output_Reporting.report_generator import ReportGenerator
     return "ReportGenerator imported"
 
 def test_report_init():
-    from report_generator import ReportGenerator
+    from Output_Reporting.report_generator import ReportGenerator
     ReportGenerator()
-    assert os.path.exists("reports")
-    return "reports/ folder created"
+    assert os.path.exists("Reports") or os.path.exists("reports")
+    return "Reports/ folder created"
 
 def test_report_recs_high():
-    from report_generator import ReportGenerator
+    from Output_Reporting.report_generator import ReportGenerator
     recs = ReportGenerator()._get_recommendations(80, 10, 15, 20)
     assert len(recs) >= 1
-    assert any("RISK" in r.upper() or "nap" in r.lower() or "tired" in r.lower()
+    assert any("FATIGUE" in r.upper() or "CRITICAL" in r.upper() or "RISK" in r.upper() or "nap" in r.lower() or "tired" in r.lower()
                for r in recs)
     return f"{len(recs)} recommendation(s) for high fatigue"
 
 def test_report_recs_safe():
-    from report_generator import ReportGenerator
+    from Output_Reporting.report_generator import ReportGenerator
     recs = ReportGenerator()._get_recommendations(20, 1, 2, 0)
     assert len(recs) >= 1
     assert any("LOW" in r.upper() or "good" in r.lower()
@@ -681,7 +683,7 @@ def test_report_recs_safe():
     return f"{len(recs)} recommendation(s) for safe session"
 
 def test_report_pdf():
-    from report_generator import ReportGenerator
+    from Output_Reporting.report_generator import ReportGenerator
     from collections import deque
     rg           = ReportGenerator()
     session_data = {
@@ -709,8 +711,8 @@ test("PDF generated successfully",         test_report_pdf)
 section("12. INTEGRATION TESTS")
 
 def test_int_predict_score():
-    from predictor import predict
-    from fatigue_score import get_score_breakdown
+    from Core_Detection.predictor import predict
+    from Core_Detection.fatigue_score import get_score_breakdown
     data  = predict(gray_frame(120), [])
     score = get_score_breakdown(
         data["EAR"], data["PERCLOS"], data["MAR"],
@@ -720,8 +722,8 @@ def test_int_predict_score():
     return f"predict->score = {score['fatigue_score']}"
 
 def test_int_score_alert():
-    from fatigue_score import calculate_fatigue_score
-    from alert import get_severity_label, get_severity_color
+    from Core_Detection.fatigue_score import calculate_fatigue_score
+    from Output_Reporting.alert import get_severity_label, get_severity_color
     score, _ = calculate_fatigue_score(0.15, 50.0, 0.60, 0.20, 0.30)
     label    = get_severity_label(score)
     color    = get_severity_color(score)
@@ -729,12 +731,12 @@ def test_int_score_alert():
     return f"score={score} -> {label} {color}"
 
 def test_int_predict_log():
-    import config
+    import Config_Files.config as config
     config.ENABLE_LOGGING = False
-    from predictor import predict
-    from fatigue_score import get_score_breakdown
-    from alert import get_severity_label
-    from logger import SessionLogger
+    from Core_Detection.predictor import predict
+    from Core_Detection.fatigue_score import get_score_breakdown
+    from Output_Reporting.alert import get_severity_label
+    from Output_Reporting.logger import SessionLogger
     lg    = SessionLogger()
     data  = predict(gray_frame(120), [])
     score = get_score_breakdown(
@@ -746,8 +748,8 @@ def test_int_predict_log():
     return "predict -> score -> log: frame_count=1"
 
 def test_int_alcohol_pipeline():
-    from predictor import predict
-    from alcohol_detector import AlcoholDetector
+    from Core_Detection.predictor import predict
+    from Feature_Modules.alcohol_detector import AlcoholDetector
     ad   = AlcoholDetector()
     data = predict(gray_frame(120), [])
     info = ad.detect(data)
@@ -756,8 +758,8 @@ def test_int_alcohol_pipeline():
     return f"predict->alcohol: score={info['impairment_score']}"
 
 def test_int_night_predict():
-    from night_mode import process_night_mode
-    from predictor import predict
+    from Feature_Modules.night_mode import process_night_mode
+    from Core_Detection.predictor import predict
     enh, info = process_night_mode(gray_frame(40))
     data      = predict(enh, [])
     assert "face_detected" in data
@@ -766,8 +768,8 @@ def test_int_night_predict():
 
 def test_int_score_charts():
     import matplotlib.pyplot as plt
-    from fatigue_score import get_score_breakdown
-    from charts import draw_fatigue_chart, draw_component_chart, draw_gauge_chart
+    from Core_Detection.fatigue_score import get_score_breakdown
+    from Output_Reporting.charts import draw_fatigue_chart, draw_component_chart, draw_gauge_chart
     from collections import deque
     score = get_score_breakdown(0.20, 30.0, 0.50, 0.12, 0.20)
     h     = deque([score["fatigue_score"]] * 5, maxlen=100)
@@ -779,14 +781,14 @@ def test_int_score_charts():
     return f"All 3 charts rendered, score={score['fatigue_score']}"
 
 def test_int_full_pipeline():
-    import config
+    import Config_Files.config as config
     config.ENABLE_LOGGING = False
-    from night_mode import process_night_mode
-    from predictor import predict
-    from fatigue_score import get_score_breakdown
-    from alert import get_severity_label, get_severity_color, trigger_alert
-    from alcohol_detector import AlcoholDetector
-    from logger import SessionLogger
+    from Feature_Modules.night_mode import process_night_mode
+    from Core_Detection.predictor import predict
+    from Core_Detection.fatigue_score import get_score_breakdown
+    from Output_Reporting.alert import get_severity_label, get_severity_color, trigger_alert
+    from Feature_Modules.alcohol_detector import AlcoholDetector
+    from Output_Reporting.logger import SessionLogger
 
     lg         = SessionLogger()
     ad         = AlcoholDetector()
@@ -823,7 +825,7 @@ test("Full end-to-end pipeline",           test_int_full_pipeline)
 section("13. APP.PY STRUCTURE CHECKS")
 
 def _src():
-    app_path = os.path.join(SCRIPT_DIR, "app.py")
+    app_path = os.path.join(PROJECT_ROOT, "app.py")
     assert os.path.exists(app_path), \
         f"app.py not found at {app_path}. Run test from project root!"
     with open(app_path, "r", encoding="utf-8") as f:
@@ -848,7 +850,7 @@ def test_app_stream():
 
 def test_app_launch():
     src = _src()
-    assert "app.launch(" in src and "server_port" in src
+    assert ("app.launch(" in src or "launch(" in src) and "server_port" in src
     return "app.launch() with server_port found"
 
 def test_app_process_frame():

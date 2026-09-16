@@ -1,11 +1,12 @@
 # --- Gradio Compatibility ---
+gradio==4.31.5
 huggingface_hub==0.24.0
 
 # --- Computer Vision & AI ---
 opencv-contrib-python-headless
 mediapipe==0.10.9
 ultralytics
-numpy
+numpy==1.26.4
 
 # --- Math & Data Logic ---
 pandas

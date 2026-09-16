@@ -46,16 +46,38 @@ def draw_overlay(frame, data, score_data, severity_label, color_hex):
     r, g, b = tuple(int(hex_col[i:i+2], 16) for i in (0, 2, 4))
     color   = (b, g, r)  # OpenCV uses BGR format
 
+    # Calculate live recording time
+    elapsed = int(time.time() - logger.start_time)
+    mins, secs = divmod(elapsed, 60)
+    hrs, mins  = divmod(mins, 60)
+    rec_time   = f"{hrs:02d}:{mins:02d}:{secs:02d}" if hrs > 0 else f"{mins:02d}:{secs:02d}"
+
     # Top Header Bar (Dark Overlay)
     cv2.rectangle(frame, (0, 0), (w, 80), (20, 20, 20), -1)
     cv2.putText(frame, "VigilEye-V3 Live Feed", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     cv2.putText(frame, f"Intensity: {score_data['fatigue_score']}%", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-    cv2.putText(frame, severity_label, (w - 200, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+    
+    # Live Recording Red Indicator & Timer
+    cv2.circle(frame, (w - 240, 25), 6, (0, 0, 255), -1)
+    cv2.putText(frame, f"REC {rec_time}", (w - 225, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 2)
+    cv2.putText(frame, severity_label, (w - 240, 65), cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, 2)
+
+    # Active Hazard Warning Banners
+    banner_y = 105
+    if data.get("yawning"):
+        cv2.rectangle(frame, (0, banner_y - 20), (w, banner_y + 10), (0, 165, 255), -1)
+        cv2.putText(frame, "YAWNING DETECTED! FATIGUE RISING", (10, banner_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        banner_y += 35
+
+    if data.get("drowsy"):
+        cv2.rectangle(frame, (0, banner_y - 20), (w, banner_y + 10), (0, 0, 255), -1)
+        cv2.putText(frame, "DROWSINESS ALERT! EYES CLOSING", (10, banner_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        banner_y += 35
 
     # Bottom Statistics Bar
     cv2.rectangle(frame, (0, h - 40), (w, h), (20, 20, 20), -1)
-    stats = f"EAR: {data['EAR']:.2f} | MAR: {data['MAR']:.2f} | PERCLOS: {data['PERCLOS']}%"
-    cv2.putText(frame, stats, (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+    stats = f"EAR: {data['EAR']:.2f} | MAR: {data['MAR']:.2f} | PERCLOS: {data['PERCLOS']}% | Rec: {rec_time}"
+    cv2.putText(frame, stats, (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
 
     # Visual Border for Critical Fatigue
     if score_data["fatigue_score"] >= 90:
@@ -74,9 +96,21 @@ def count_yawns_per_minute(yawning):
 
 def process_frame(frame):
     """Main processing pipeline triggered by Gradio's webcam stream."""
+    # Calculate recording time string
+    elapsed  = int(time.time() - logger.start_time)
+    mins, secs = divmod(elapsed, 60)
+    hrs, mins  = divmod(mins, 60)
+    rec_str  = f"{hrs:02d}:{mins:02d}:{secs:02d}" if hrs > 0 else f"{mins:02d}:{secs:02d}"
+
     if frame is None:
         # Return default values if no frame is received
-        return (None, "Feed Lost", 0, "-", "-", "0/min", "-", None, None, None, 0, "Idle", "None")
+        empty_fig = draw_fatigue_chart(score_history)
+        return (
+            None, "Feed Lost", 0,
+            "🟢 ALERT & AWAKE", "🟢 NO YAWN", "🟢 SAFE (No Phone)", "🟢 SOBER", "Unknown",
+            rec_str, "-", "-", "-", "-",
+            empty_fig, None, None
+        )
 
     # 1. Image Enhancement (Night Mode processing)
     frame, _ = process_night_mode(frame)
@@ -96,7 +130,14 @@ def process_frame(frame):
     # 5. Handle Face Detection Failure
     if not data["face_detected"]:
         empty_fig = draw_fatigue_chart(score_history)
-        return (frame, "Searching for face...", 0, "-", "-", "0/min", "-", empty_fig, None, None, 0, "No User", "None")
+        return (
+            frame, "Searching for face...", 0,
+            "⚠️ FACE NOT DETECTED", "🟢 NO YAWN",
+            "🚨 WARNING! Phone Detected" if phone_info["phone_detected"] else "🟢 SAFE (No Phone)",
+            f"🚨 IMPAIRED ({alcohol_info['impairment_score']}%)" if alcohol_info["alcohol_alert"] else f"🟢 SOBER ({alcohol_info['impairment_score']}%)",
+            driver_recognizer.current_driver, rec_str, "-", "-", "-", "-",
+            empty_fig, None, None
+        )
 
     # 6. Core Fatigue Scoring
     score_data = get_score_breakdown(data["EAR"], data["PERCLOS"], data["MAR"], data["gaze_x"], data["gaze_y"])
@@ -112,7 +153,7 @@ def process_frame(frame):
 
     alert_active = (score_data["fatigue_score"] >= 40 or data["yawning"] or data["distracted"])
     
-    # Audio Alerting (Note: Limited on Cloud environments)
+    # Audio Alerting
     try:
         trigger_alert(score_data["fatigue_score"], yawning=data["yawning"], distracted=data["distracted"])
     except:
@@ -122,7 +163,14 @@ def process_frame(frame):
     logger.log(data, score_data, severity_label, alert_active)
     score_history.append(score_data["fatigue_score"])
 
-    # 9. Visualization & UI Rendering
+    # 9. Status strings for Gradio Display
+    drowsy_status = "🚨 DROWSY / SLEEPY!" if data["drowsy"] else "🟢 ALERT & AWAKE"
+    yawn_status   = f"⚠️ YAWNING DETECTED! (Total: {logger.yawn_count})" if data["yawning"] else f"🟢 NO YAWN (Total: {logger.yawn_count})"
+    phone_status  = f"🚨 PHONE DETECTED! ({phone_info['phone_confidence']}%)" if phone_info["phone_detected"] else "🟢 SAFE (No Phone Detected)"
+    alc_status    = f"🚨 IMPAIRED! ({alcohol_info['impairment_score']}%)" if alcohol_info["alcohol_alert"] else f"🟢 SOBER ({alcohol_info['impairment_score']}%)"
+    driver_status = f"👤 {driver_recognizer.current_driver}"
+
+    # 10. Visualization & UI Rendering
     frame         = draw_overlay(frame, data, score_data, severity_label, color_code)
     fatigue_fig   = draw_fatigue_chart(score_history)
     component_fig = draw_component_chart(score_data)
@@ -133,13 +181,20 @@ def process_frame(frame):
 
     return (
         frame_rgb, severity_label, score_data["fatigue_score"],
-        str(round(data['EAR'], 2)), f"{data['PERCLOS']}%", f"{yawns_count}/min",
-        f"X:{data['gaze_x']} Y:{data['gaze_y']}",
-        fatigue_fig, component_fig, gauge_fig,
-        alcohol_info["impairment_score"], 
-        alcohol_detector.get_status_label(),
-        ", ".join(alcohol_detector.get_active_signals())
+        drowsy_status, yawn_status, phone_status, alc_status, driver_status,
+        rec_str, str(round(data['EAR'], 2)), str(round(data['MAR'], 2)), f"{data['PERCLOS']}%", f"X:{data['gaze_x']} Y:{data['gaze_y']}",
+        fatigue_fig, component_fig, gauge_fig
     )
+
+def get_summary():
+    """Returns session summary dictionary."""
+    return logger.get_session_summary()
+
+def register_driver(driver_name, camera_frame=None):
+    """Registers a driver using DriverRecognizer."""
+    if camera_frame is None:
+        camera_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    return driver_recognizer.register_driver(camera_frame, driver_name)
 
 def generate_pdf_report():
     """Compiles and generates the final PDF session summary."""
@@ -152,7 +207,7 @@ def generate_pdf_report():
         avg_comp = {k: round(sum(v)/len(v), 1) if v else 0 for k, v in component_tracker.items()}
         
         session_data = {
-            "driver_name"       : "Active Driver",
+            "driver_name"       : driver_recognizer.current_driver,
             "session_duration"  : summary["session_duration"],
             "total_frames"      : summary["total_frames"],
             "avg_fatigue_score" : round(sum(scores)/len(scores), 1),
@@ -175,50 +230,64 @@ with gr.Blocks(title=DASHBOARD_TITLE, theme=gr.themes.Default()) as app:
         with gr.TabItem("Live Monitoring"):
             with gr.Row():
                 with gr.Column(scale=2):
-                    camera = gr.Image(sources=["webcam"], streaming=True, label="Webcam Input")
-                    output_frame = gr.Image(label="AI Analysis Output")
+                    camera = gr.Image(sources=["webcam"], streaming=True, label="Webcam Input (Click Video Icon to Start Camera)")
+                    output_frame = gr.Image(label="AI Analysis Output Feed")
                 
                 with gr.Column(scale=1):
-                    severity_display = gr.Label(label="Safety Level")
+                    severity_display = gr.Label(label="Overall Safety Level")
                     fatigue_score = gr.Number(label="Fatigue Intensity (%)")
                     
                     with gr.Group():
-                        gr.Markdown("### Real-Time Metrics")
+                        gr.Markdown("### Live Driver Status & Hazard Alerts")
+                        drowsy_disp = gr.Textbox(label="Sleepiness / Drowsiness State", interactive=False)
+                        yawn_disp   = gr.Textbox(label="Yawn Detection & Total Count", interactive=False)
+                        phone_disp  = gr.Textbox(label="Phone Distraction Alert", interactive=False)
+                        alc_disp    = gr.Textbox(label="Alcohol Impairment Status", interactive=False)
+                        driver_disp = gr.Textbox(label="Recognized Driver Identity", interactive=False)
+
+                    with gr.Group():
+                        gr.Markdown("### Real-Time Biometric Metrics")
                         with gr.Row():
-                            ear_disp = gr.Textbox(label="EAR")
-                            per_disp = gr.Textbox(label="PERCLOS")
+                            rec_disp  = gr.Textbox(label="Rec Duration", interactive=False)
+                            ear_disp  = gr.Textbox(label="EAR (Eye Aspect)", interactive=False)
                         with gr.Row():
-                            yawn_disp = gr.Textbox(label="Yawns/Min")
-                            gaze_disp = gr.Textbox(label="Gaze Coord")
+                            mar_disp  = gr.Textbox(label="MAR (Mouth Aspect)", interactive=False)
+                            per_disp  = gr.Textbox(label="PERCLOS (% Eyes Closed)", interactive=False)
+                        with gr.Row():
+                            gaze_disp = gr.Textbox(label="Gaze Coordinates", interactive=False)
 
             with gr.Row():
                 pdf_btn = gr.Button("Generate PDF Session Report", variant="primary")
                 pdf_status = gr.Textbox(label="Report Status", interactive=False)
                 pdf_btn.click(generate_pdf_report, outputs=pdf_status)
 
-        with gr.TabItem("Alcohol & Impairment"):
-            with gr.Row():
-                alc_score = gr.Number(label="Alcohol Confidence Score")
-                alc_status = gr.Textbox(label="Detection State")
-            alc_signals = gr.Textbox(label="Physical Signals Detected", lines=2)
-
         with gr.TabItem("Visual Analytics"):
             with gr.Row():
-                f_chart = gr.Plot(label="Fatigue Trend")
-                c_chart = gr.Plot(label="Metric Contribution")
+                f_chart = gr.Plot(label="Fatigue Trend Over Time")
+                c_chart = gr.Plot(label="Metric Contribution Breakdown")
             with gr.Row():
-                g_chart = gr.Plot(label="Intensity Gauge")
+                g_chart = gr.Plot(label="Real-time Intensity Gauge")
 
-    # Connect the streaming webcam feed to the processing function
+        with gr.TabItem("Driver Registration"):
+            gr.Markdown("### Register New Driver Profile")
+            with gr.Row():
+                reg_name = gr.Textbox(label="Driver Name")
+                reg_img  = gr.Image(sources=["webcam"], label="Capture Face Photo")
+            reg_btn = gr.Button("Register Driver", variant="primary")
+            reg_out = gr.Textbox(label="Registration Status", interactive=False)
+            reg_btn.click(register_driver, inputs=[reg_name, reg_img], outputs=reg_out)
+
+    # Connect webcam stream to AI processing function
     camera.stream(
         process_frame, 
         inputs=[camera],
         outputs=[
             output_frame, severity_display, fatigue_score, 
-            ear_disp, per_disp, yawn_disp, gaze_disp, 
-            f_chart, c_chart, g_chart,
-            alc_score, alc_status, alc_signals
+            drowsy_disp, yawn_disp, phone_disp, alc_disp, driver_disp,
+            rec_disp, ear_disp, mar_disp, per_disp, gaze_disp, 
+            f_chart, c_chart, g_chart
         ]
     )
 
-app.queue().launch()
+if __name__ == "__main__":
+    app.queue().launch(server_port=7860)

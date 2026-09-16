@@ -6,4 +6,12 @@ __pycache__/
 .env
 .DS_Store
 reports/*.pdf
+Reports/*.pdf
+Database/Drivers/*.jpg
+Session Data/
 *.pt
+git_push*.txt
+push_*.txt
+check_token*
+create_*
+hello.py
