@@ -1,5 +1,4 @@
 # --- Gradio Compatibility ---
-gradio==4.31.5
 huggingface_hub==0.24.0
 
 # --- Computer Vision & AI ---
