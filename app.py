@@ -288,9 +288,7 @@ with gr.Blocks(title=DASHBOARD_TITLE, theme=gr.themes.Default()) as app:
             f_chart, c_chart, g_chart
         ],
         api_name="process_frame",
-        show_progress="hidden",
-        trigger_mode="always_last",
     )
 
 if __name__ == "__main__":
-    app.queue().launch(server_port=7860)
+    app.queue().launch(server_port=7860)
