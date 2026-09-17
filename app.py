@@ -279,14 +279,17 @@ with gr.Blocks(title=DASHBOARD_TITLE, theme=gr.themes.Default()) as app:
 
     # Connect webcam stream to AI processing function
     camera.stream(
-        process_frame, 
+        process_frame,
         inputs=[camera],
         outputs=[
-            output_frame, severity_display, fatigue_score, 
+            output_frame, severity_display, fatigue_score,
             drowsy_disp, yawn_disp, phone_disp, alc_disp, driver_disp,
-            rec_disp, ear_disp, mar_disp, per_disp, gaze_disp, 
+            rec_disp, ear_disp, mar_disp, per_disp, gaze_disp,
             f_chart, c_chart, g_chart
-        ]
+        ],
+        api_name="process_frame",
+        show_progress="hidden",
+        trigger_mode="always_last",
     )
 
 if __name__ == "__main__":
