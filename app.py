@@ -234,7 +234,7 @@ with gr.Blocks(title=DASHBOARD_TITLE, theme=gr.themes.Default()) as app:
                     output_frame = gr.Image(label="AI Analysis Output Feed")
                 
                 with gr.Column(scale=1):
-                    severity_display = gr.Label(label="Overall Safety Level")
+                    severity_display = gr.Textbox(label="Overall Safety Level", interactive=False)
                     fatigue_score = gr.Number(label="Fatigue Intensity (%)")
                     
                     with gr.Group():
